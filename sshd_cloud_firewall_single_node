@@ -1,0 +1,130 @@
+
+#########################################################
+# https://hiddenssh.com                                 #
+#                                                       #
+# sshd_cloud_firewall_single_node                       #
+# version 1.41                                          #
+# Early version has bugs when it comes to IP blocking   #
+#########################################################
+# Notes: if issues, run following commands.
+# mkdir -p /run/sshd
+# chmod 0755 /run/sshd
+# chown root:root /run/sshd
+
+# NETWORK
+# -------
+# If you want to change the port on a SELinux system, you have to tell
+# SELinux about this change.
+# semanage port -a -t ssh_port_t -p tcp #PORTNUMBER
+#
+Protocol 2
+Port 22
+AddressFamily inet
+ListenAddress 192.168.0.1
+# VPN if you are using VPN you need to listen on local address also
+#ListenAddress 10.0.0.1
+PermitTTY yes
+TCPKeepAlive yes
+
+# DEAMON
+# -------
+VersionAddendum HiddenSSH-cloud
+PidFile /var/run/sshd.pid
+
+# Encryption
+# ----------
+# The command "sshd -T | grep macs" shows the supported MAC algorithms
+# aes256-cbc uses AES in cipher-block chaining (CBC) mode, which can be vulnerable to certain attacks if not used correctly.
+# aes256-gcm@openssh.com uses AES in Galois/Counter Mode (GCM), which provides both encryption and authentication, 
+# making it resistant to certain types of attacks. However, it may not be as widely supported
+# twofish256-ctr is a good option but not supported by all systems
+# chacha20-poly1305@openssh.com is its performance. The ChaCha20 stream cipher is generally faster than AES, especially on systems without hardware acceleration for AES.
+# Run /proc/cpuinfo to check the accelerators.
+# Use aes256-ctr if things break.
+Ciphers aes256-gcm@openssh.com
+# If you want to choose one MAC algorithm for the best security, hmac-sha2-512-etm@openssh.com would be the best choice.
+MACs hmac-sha2-512-etm@openssh.com
+KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256
+# Public key types accepted
+# NIST P-curves are possibly back-doored by the U.S. National Security Agency.
+# ecdh-sha2-nistp256, ecdh-sha2-nistp384, ecdh-sha2-nistp521
+# You should prerable ONLY use; security key with ed25519 if possible, and as only Accepted Key type.
+PubkeyAcceptedKeyTypes ssh-rsa,rsa-sha2-512,ssh-ed25519-cert-v01@openssh.com
+RekeyLimit 4G 1h
+Compression yes
+
+# Logging
+# -------
+SyslogFacility AUTH
+LogLevel info
+
+# Hardening login
+# ---------------
+LoginGraceTime 2m
+StrictModes yes
+MaxAuthTries 5
+MaxSessions 5
+MaxStartups 10:30:100
+ChallengeResponseAuthentication no
+UseDNS yes
+UsePAM yes
+PermitRootLogin no
+DenyGroups root
+PermitEmptyPasswords no
+DenyUsers root admin administrator user test guest webmaster backup ftp ssh postgres mysql oracle tomcat apache www-data git docker mail pi
+ClientAliveInterval 0
+ClientAliveCountMax 5
+HostbasedAuthentication no
+IgnoreUserKnownHosts no
+ChrootDirectory none
+
+# Information notice
+# ------------------
+# Needed for:  SCP, sshfs
+Subsystem sftp  /usr/libexec/openssh/sftp-server
+
+# User Settings
+# --------
+# With this option set to "yes", users can set arbitrary environment variables that can potentially override system settings.
+# or perform unauthorized actions. This can be especially dangerous if the user connecting via SSH has administrative privileges on the system.
+PermitUserEnvironment yes
+     Match user user1,user2
+Match all
+    PermitUserEnvironment no
+PasswordAuthentication no
+PubkeyAuthentication yes
+
+# AuthorizedKeysFile /etc/ssh/%u tells sshd to look for each user’s allowed SSH public keys in /etc/ssh/ 
+# (e.g., /etc/ssh/user1) instead of ~/.ssh/authorized_keys.
+# touch /etc/ssh/user1
+# chmod 0644 /etc/ssh/user1
+# chown root:root /etc/ssh/user1
+# rc-service sshd reload or systemctl restart sshd
+#AuthorizedKeysFile /etc/ssh/%u
+
+# Classical ~/.ssh/authorized_keys
+AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_backup
+
+# certificate file
+#TrustedUserCAKeys /etc/ssh/certificate-auth/user1-hiddenssh-cert.pub
+
+# WARNING
+AllowAgentForwarding no
+AllowTcpForwarding no
+PermitTunnel yes
+GatewayPorts no
+
+# Firewall
+# ---------
+# Iptable defines what IPs can connect, 
+# OpenSSH Defines IPs to inviduall users.
+# IP Need to be set in SSH iptables chain
+# IP Need to be set in sshd config AllowUsers
+AllowUsers user1@192.168.0.10 user2@10.0.0.10
+
+# Accept locale-related environment variables
+# -------------------------------------------
+AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
+AcceptEnv XMODIFIERS
+AcceptEnv hiddenssh oraclesecretkey oracleauthtoken cloudflaretoken openaikey
+
