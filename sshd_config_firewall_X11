@@ -1,0 +1,120 @@
+
+#########################################################
+# https://hiddenssh.com                                 #
+#                                                       #
+# sshd_config_firewwall_X11	                        #
+# Version 1.1                                           #
+#########################################################
+
+# Network
+# --------
+Port 22
+AddressFamily inet
+# For Public
+ListenAddress 192.168.0.1
+# For the VPN
+ListenAddress 10.0.0.1
+AllowAgentForwarding no
+AllowTcpForwarding yes
+GatewayPorts yes
+PermitTunnel yes
+TCPKeepAlive yes
+
+# Firewall
+# ---------
+# Only allow a user to login, and with correct ip.# gateway
+# Need to be set in SSH iptables chain
+# Need to be set in /etc/hosts.allow
+# Example sshd: 192.168.0.100
+#         sshd: 1.1.1.*
+# Need to be set in sshd config AllowUsers
+AllowUsers user1@192.168.1.100 user2@10.0.0.2
+
+# Encryption
+# ----------
+# AES acceleration on CPU important for X11 forwarding.
+Ciphers aes256-ctr,aes256-gcm@openssh.com
+MACs hmac-sha2-512-etm@openssh.com
+KexAlgorithms curve25519-sha256@libssh.org
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+RekeyLimit 4G 1h
+# Compression is important for bandwith savings.
+Compression delayed
+
+# Logging
+SyslogFacility AUTH
+SyslogFacility AUTHPRIV
+LogLevel INFO
+
+# Hardening login
+# ---------------
+LoginGraceTime 5m
+StrictModes yes
+MaxAuthTries 5
+MaxSessions 5
+MaxStartups 10:30:100
+ChallengeResponseAuthentication no
+UseDNS yes
+PidFile /run/sshd.pid
+ClientAliveInterval 0
+ClientAliveCountMax 3
+
+# Login
+# ------
+PubkeyAuthentication yes
+AuthorizedKeysFile      .ssh/authorized_keys .ssh/authorized_keys_backup
+PasswordAuthentication yes
+PermitEmptyPasswords no
+UsePAM yes
+# Disable functions
+HostbasedAuthentication no
+IgnoreUserKnownHosts yes
+IgnoreRhosts yes
+# Disable users
+PermitRootLogin no
+DenyUsers root guest ubuntu postfix snap_daemon snapd-range-524288-root sddm geoclue colord saned pulse avahi lightdm rtkit debian-tor dnsmasq nvidia-persistenced glances usbmux fwupd-refresh landscape tss tcpdump uuidd syslog polkitd pollinate systemd-resolve messagebus dhcpcd systemd-timesync systemd-network nobody _apt irc list backup www-data proxy uucp news mail lp man games sync sys bin daemon 
+DenyGroups root guest nobody ubuntu
+
+# Info
+# -----
+PrintMotd yes
+VersionAddendum hiddenssh-firewall-x11-v1.0
+# Will show before login
+Banner /etc/ssh/login.txt
+PrintLastLog yes
+
+# X11 / Window manager
+# --------------------
+X11Forwarding yes
+X11DisplayOffset 10
+X11UseLocalhost yes
+
+# System Tweaks
+# --------------
+PermitTTY yes
+PermitUserEnvironment yes
+ChrootDirectory none
+AuthorizedPrincipalsFile none
+AuthorizedKeysCommand none
+AuthorizedKeysCommandUser nobody
+# override default of no subsystems
+Subsystem       sftp    /usr/lib/openssh/sftp-server
+
+# Enviromental Variables, command: env
+# Add API Keys
+AcceptEnv LANG LC_* hiddenssh openaikey oraclesecretkey oracleauthtoken
+
+# Multi-box-setup
+KbdInteractiveAuthentication no
+# Kerberos options
+#KerberosAuthentication no
+#KerberosOrLocalPasswd yes
+#KerberosTicketCleanup yes
+#KerberosGetAFSToken no
+# GSSAPI options
+#GSSAPIAuthentication no
+#GSSAPICleanupCredentials yes
+#GSSAPIStrictAcceptorCheck yes
+#GSSAPIKeyExchange no
+
